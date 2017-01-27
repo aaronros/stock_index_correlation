@@ -187,8 +187,9 @@ def get_TS(tick, start_date, end_date):
 
 def get_largest_TS(holdings, start_date, end_date, ncounter = 10):
     if len(holdings) == 0: raise EmptyIndex('No holdings passed to function')
-        
+    count = 0
     for tick in holdings:
+        count += 1
         print(tick)
         tick_larg = ''
         rows_larg = 0
@@ -197,15 +198,8 @@ def get_largest_TS(holdings, start_date, end_date, ncounter = 10):
         if rows_tick > rows_larg:
             rows_larg = rows_tick
             tick_larg = tick
-    print(tick_larg)
+        if count >= ncounter: break
     return tick_larg
-
-
-
-
-'''
-Main functions
-'''
 
 '''
 Function: get_holdings
@@ -233,10 +227,9 @@ def get_holdings(etf, start_date = 'Jan 1 1990', end_date = 'Dec 1 2016', nstock
     counter = 0
     
     
-    #print(type(df_hold))
-    #df_largest = get_largest_TS(df_hold,start_date, end_date)
-    #print(df_largest)
-    #return
+#    print(type(df_hold))
+#    df_largest = get_largest_TS(df_hold,start_date, end_date)
+#    print(df_largest)
 
 
 
@@ -261,7 +254,6 @@ def get_holdings(etf, start_date = 'Jan 1 1990', end_date = 'Dec 1 2016', nstock
     return df_full_price
 
 df_full_price = get_holdings('IYR',start_date='Jan 1 1990', end_date= 'Dec 1 2016', nstocks= 10, include_index=False)
-
 
 
 
