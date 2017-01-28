@@ -257,3 +257,21 @@ df_full_price = get_holdings('IYR',start_date='Jan 1 1990', end_date= 'Dec 1 201
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
