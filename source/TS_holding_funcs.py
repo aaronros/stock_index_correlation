@@ -51,107 +51,25 @@ class ValueError(Exception):
 class EmptyIndex(Exception):
     pass
 
-
 '''
-Function: get_month
-Usage: month = get_month(date)
----
-For a given date, we extract the month. Raises
-an error if the month is in the wrong form
-'''
-def get_month(date):
-    months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    month = date[0:3]
-    
-    #assert month in months
-    #return month
-    if month in months: return month
-    else: 
-        raise ValueError('Incorrect date input')
-
-'''
-Function: get_day
-Usage: day = get_day(date)
----
-For a given date, we extract the day. Raises
-an error if the day is in the wrong form
-'''
-def get_day(date):
-    days = range(1,32)
-    day = date[4]
-    if not date[5] == ' ': day += date[5]
-    day = int(day)
-    if day in days: return day
-    else:
-        raise ValueError('Incorrect date input')
-
-'''
-Function: get_year
-Usage: year = get_year(date)
----
-For a given date, we extract the year. Raises
-an error if the year is in the wrong form
-'''    
-def get_year(date):
-    years = range(1900,2017)
-    year = int(date[len(date)-4:len(date)])
-    if year in years: return year
-    else:
-        raise ValueError('Incorrect year input')
-
-'''
-Function: get_date_form
-Usage: date_form = get_date_form(date)
----
-For a given date, we extract the date form. Raises
-an error if the date is in the wrong form
-'''   
-def get_date_form(date):
-    month = get_month(date)
-    day = str(get_day(date))
-    year = str(get_year(date))
-    return month + '+' + day + '%2C' + '+' + year
-
-'''
-Function: get_TS_NASDAQ
-Usage: df = get_TS_NASDAQ('AAPL', 'Jan 1 1990', 'Dec 1 2016')
+Function: get_raw_TS
+Usage: df = get_raw_TS('AAPL', 'Jan 1 1990', 'Dec 1 2016')
 ---
 Returns a dataframe of the price time series for a given ticker. 
 '''
-def get_TS_NASDAQ(tick, start_date, end_date):
+def get_raw_TS(tick, start_year, end_year):
     tick = str(tick)
-    url_name = 'https://www.google.com/finance/historical?q=NASDAQ%3A' + tick
-    url_start_date = '&ei=WmRhWLHJDITCjAGDlJnoCw&startdate=' + get_date_form(start_date)
-    url_end_date = '&enddate=' + get_date_form(end_date)
-    url_output = '&output=csv'    
-    url_csv = url_name + url_start_date + url_end_date + url_output
+    url_name = 'http://chart.finance.yahoo.com/table.csv?s=' + tick
+    url_date = '&a=0&b=01&c=' + str(start_year) + '&d=0&e=01&f=' + str(end_year)
+    url_csv = '&g=d&ignore=.csv'
+    url = url_name + url_date + url_csv
     
     try:
-        df = pd.read_csv(url_csv)
+        df = pd.read_csv(url)
     except:
         return pd.DataFrame()
     return df
-
-'''
-Function: get_TS_NYSE
-Usage: df = get_TS_NYSE('XOM', 'Jan 1 1990', 'Dec 1 2016')
----
-Returns a dataframe of the price time series for a given ticker. 
-'''
-def get_TS_NYSE(tick, start_date, end_date):
-    tick = str(tick)
-    url_name = 'https://www.google.com/finance/historical?q=NYSE%3A' + tick
-    url_start_date = '&ei=c51oWPH6Osyw2Aa9363wCA&startdate=' + get_date_form(start_date)
-    url_end_date = '&enddate=' + get_date_form(end_date)
-    url_output = '&output=csv'    
-    url_csv = url_name + url_start_date + url_end_date + url_output
     
-    try:
-        df = pd.read_csv(url_csv)
-    except:
-        return pd.DataFrame()
-    return df
 
 '''
 Function: get_TS
@@ -161,19 +79,18 @@ Wrapper function for NYSE and NASDAQ TS functions
 Returns a dataframe of the price time series for a given ticker. 
 Returns a dataframe of the price and the percent change
 '''
-def get_TS(tick, start_date, end_date):
+def get_TS(tick, start_year, end_year):
     if str(tick) == 'nan': return pd.DataFrame()
     
-    df = get_TS_NASDAQ(tick, start_date, end_date)
+    df = get_raw_TS(tick, start_year, end_year)
     if df.empty == True: 
-        df = get_TS_NYSE(tick, start_date, end_date)
-        if df.empty == True:
-            print('Warning: ' + tick + ' could not be found in the NASDAQ or NYSE')
-            return pd.DataFrame()
+        print('Warning: ' + tick + ' could not be found in the NASDAQ or NYSE')
+        return pd.DataFrame()
+    
     
     df = df.convert_objects(convert_numeric=True)
-    df.columns = ['Date', tick,'High','Low','Close','Vol']
-    df = df[['Date',tick]]
+    df.columns = ['Date', 'Open','High','Low','Close','Vol', tick] # tick is technically adjusted close
+    df = df[['Date', tick]]
     df.set_index('Date',inplace = True)
     df = df.iloc[::-1]
     df.replace({0: 'nan'})
@@ -184,22 +101,7 @@ def get_TS(tick, start_date, end_date):
     df_perc_chn[tick] = (df_perc_chn[tick] - df_perc_chn[tick][0]) / df_perc_chn[tick][0] * 100.0
     
     return df_price, df_perc_chn 
-
-def get_largest_TS(holdings, start_date, end_date, ncounter = 10):
-    if len(holdings) == 0: raise EmptyIndex('No holdings passed to function')
-    count = 0
-    for tick in holdings:
-        count += 1
-        print(tick)
-        tick_larg = ''
-        rows_larg = 0
-        df_price, df_perc_chn = get_TS(tick, start_date, end_date)
-        rows_tick = len(df_price)
-        if rows_tick > rows_larg:
-            rows_larg = rows_tick
-            tick_larg = tick
-        if count >= ncounter: break
-    return tick_larg
+ 
 
 '''
 Function: get_holdings
@@ -209,7 +111,7 @@ This function returns a dataframe of the holdings for a given etf
 where the etf itself is the first entry. The index of the data frame 
 is time and the data is the stock price
 '''
-def get_holdings(etf, start_date = 'Jan 1 1990', end_date = 'Dec 1 2016', nstocks = 30, include_index = True):
+def get_holdings(etf, start_year = 1990, end_year = 2016, nstocks = 30, include_index = True):
 
     # find all holdings
     url_holdings = 'http://etfdailynews.com/etf/' + etf
@@ -218,25 +120,19 @@ def get_holdings(etf, start_date = 'Jan 1 1990', end_date = 'Dec 1 2016', nstock
 
 
     # now loop through the tickers in df_hold and create dataframes for 
-    # each of the stock prices.
+    # each of the stock prices. THis if statement is used if we want to
+    # include the index
     if include_index:
-        df_index_price, df_index_perc_chn  = get_TS(etf, start_date, end_date)
+        df_index_price, df_index_perc_chn  = get_TS(etf, start_year, end_year)
         df_full_price = df_index_price.copy(deep= True)
         df_full_perc_chn = df_index_perc_chn.copy(deep= True)
     
     counter = 0
-    
-    
-#    print(type(df_hold))
-#    df_largest = get_largest_TS(df_hold,start_date, end_date)
-#    print(df_largest)
-
-
 
     for tick in df_hold:
         counter += 1
         print(tick)
-        df_tick_price, df_tick_perc_chn = get_TS(tick, start_date, end_date)
+        df_tick_price, df_tick_perc_chn = get_TS(tick, start_year, end_year)
         if not df_tick_perc_chn.empty and not str(tick) == 'nan':
             if counter == 1 and include_index == False:
                 df_full_price = df_tick_price.copy(deep = True)
@@ -251,27 +147,46 @@ def get_holdings(etf, start_date = 'Jan 1 1990', end_date = 'Dec 1 2016', nstock
     fig, ax = plt.subplots(facecolor='white')
     df_full_perc_chn.plot(legend = False, ax= ax)
     
-    return df_full_price
+    return df_full_price, df_corr
 
-df_full_price = get_holdings('IYR',start_date='Jan 1 1990', end_date= 'Dec 1 2016', nstocks= 10, include_index=False)
-
-
+df_full_price, df_corr = get_holdings('IYH',start_year =1950, end_year= 2016, nstocks= 10, include_index=True)
 
 
 
+# for two different df columns, 
+plt.close('all')
+
+tick1 = 'IYH'
+tick2 = 'JNJ'
+
+rolling_corr = pd.rolling_corr(df_full_price[tick1], df_full_price[tick2], 30*5)
+fig = plt.figure(facecolor = 'white')
+ax1 = plt.subplot2grid((2,1),(0,0))
+ax2 = plt.subplot2grid((2,1),(1,0), sharex = ax1)
+
+df_full_price[tick1].plot(ax = ax1, label = tick1)
+df_full_price[tick2].plot(ax = ax1, label = tick2)
+
+ax1.legend(loc = 2)
+rolling_corr.plot(ax=ax2, label = 'Rolling corr')
+
+plt.legend(loc = 2)
+plt.show()
 
 
 
 
+'''
+trading ideas
 
+If correlation goes below -0.5 (or some threshold to be determined), buy the 
+low and short the high (how to determine which is low and high?). Hold until
+correlation is 0.5 (some other threshold), in which case dump all the two
+positions
 
+- how to do this for more than 2 stocks? AAPL is correlated with MSFT, FB and
+much more. 
 
-
-
-
-
-
-
-
-
-
+- maybe within an index, take the stocks that are 0.9 correlated and correlate
+them all in time with each other to get an average. Then buy/short
+'''
